@@ -137,15 +137,18 @@ backend:
 
   - task: "Admin endpoints (/api/train, /api/model/status, /api/admin/stats)"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "Implemented admin-only endpoints for CSV upload, model training, and status monitoring. JWT authentication integrated. Need to test file upload and model training flow."
+      - working: true
+        agent: "testing"
+        comment: "Tested all admin endpoints. The /api/train endpoint successfully accepts CSV uploads and trains the model. The /api/model/status endpoint correctly reports model status and statistics. The /api/admin/stats endpoint provides accurate admin dashboard statistics. All endpoints require proper authentication and are working as expected."
 
   - task: "Supabase JWT authentication integration"
     implemented: true
