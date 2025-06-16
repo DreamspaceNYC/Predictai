@@ -122,15 +122,18 @@ backend:
 
   - task: "ML prediction engine with scikit-learn + XGBoost"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "Implemented ML model with XGBoost fallback to RandomForest. Includes feature engineering from odds. Need to test prediction accuracy and model training."
+      - working: true
+        agent: "testing"
+        comment: "Tested ML prediction engine. The system correctly generates predictions based on odds data. Feature engineering from odds works properly. Model training with CSV data works correctly. The system falls back to odds-based prediction when no model is available. Confidence scoring is appropriate and within expected ranges."
 
   - task: "Admin endpoints (/api/train, /api/model/status, /api/admin/stats)"
     implemented: true
