@@ -237,10 +237,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Core API endpoints (/api/, /api/odds, /api/predictions)"
-    - "ML prediction engine with scikit-learn + XGBoost"
-    - "Admin endpoints (/api/train, /api/model/status, /api/admin/stats)"
-    - "Supabase JWT authentication integration"
+    - "Main dashboard with match predictions"
+    - "Supabase authentication integration"
+    - "Admin panel with CSV upload and model controls"
+    - "Responsive design and color-coded confidence bars"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
