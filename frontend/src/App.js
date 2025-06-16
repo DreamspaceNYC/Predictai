@@ -19,14 +19,30 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+// Use environment variables with fallbacks for demo
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://425aefbe-f75a-4f52-8f53-056fcedf3b59.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
-// Supabase client
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+// Supabase client with fallback for demo
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://demo.supabase.co';
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'demo-key';
+
+let supabase;
+try {
+  supabase = createClient(supabaseUrl, supabaseKey);
+} catch (error) {
+  console.warn('Supabase client creation failed, using mock auth:', error);
+  // Mock supabase for demo purposes
+  supabase = {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signInWithPassword: () => Promise.resolve({ error: null }),
+      signUp: () => Promise.resolve({ error: null }),
+      signOut: () => Promise.resolve()
+    }
+  };
+}
 
 // Auth Context
 const AuthContext = createContext();
@@ -41,6 +57,8 @@ const AuthProvider = ({ children }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
 
@@ -57,23 +75,35 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   const signIn = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      return { error: { message: 'Authentication service unavailable' } };
+    }
   };
 
   const signUp = async (email, password) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      return { error: { message: 'Authentication service unavailable' } };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.warn('Sign out failed:', error);
+    }
   };
 
   const isAdmin = () => {
@@ -812,19 +842,6 @@ const LoginPage = () => {
 };
 
 function App() {
-  const { loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="App">
       <AuthProvider>
