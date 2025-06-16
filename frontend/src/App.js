@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 const API = `${BACKEND_URL}/api`;
 
 // Supabase client
@@ -56,12 +56,18 @@ const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email) => {
-    const { error } = await supabase.auth.signInWithOtp({
+  const signIn = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      password,
+    });
+    return { error };
+  };
+
+  const signUp = async (email, password) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
     });
     return { error };
   };
@@ -71,8 +77,8 @@ const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    // For demo purposes, admin emails end with @admin.com
-    return user?.email?.endsWith('@admin.com') || user?.email === 'admin@predictbet.ai';
+    // Check if user email matches admin email
+    return user?.email === 'komolafedaniel20@gmail.com' || user?.email?.endsWith('@admin.com');
   };
 
   return (
@@ -81,6 +87,7 @@ const AuthProvider = ({ children }) => {
       session,
       loading,
       signIn,
+      signUp,
       signOut,
       isAdmin
     }}>
@@ -143,7 +150,7 @@ const MatchCard = ({ match, prediction }) => {
           <p className="text-sm text-gray-400">{match.league}</p>
         </div>
         <div className="text-xs text-gray-500">
-          {new Date(match.match_date).toLocaleDateString()}
+          {match.match_date ? new Date(match.match_date).toLocaleDateString() : 'Today'}
         </div>
       </div>
 
@@ -206,7 +213,8 @@ const Dashboard = () => {
   const [matches, setMatches] = useState([]);
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin } = useAuth();
+  const [error, setError] = useState('');
+  const { user, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
     loadData();
@@ -215,6 +223,9 @@ const Dashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError('');
+      
+      console.log('Loading data from API:', API);
       
       // Get odds and predictions
       const [oddsResponse, predictionsResponse] = await Promise.all([
@@ -222,10 +233,14 @@ const Dashboard = () => {
         axios.get(`${API}/predictions`)
       ]);
       
+      console.log('Odds response:', oddsResponse.data);
+      console.log('Predictions response:', predictionsResponse.data);
+      
       setMatches(oddsResponse.data);
       setPredictions(predictionsResponse.data);
     } catch (error) {
       console.error('Error loading data:', error);
+      setError(`Failed to load data: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -281,12 +296,27 @@ const Dashboard = () => {
                   </Link>
                 )}
                 <button 
-                  onClick={() => window.location.reload()}
+                  onClick={loadData}
                   className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
                   title="Refresh"
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
+                {user ? (
+                  <button 
+                    onClick={signOut}
+                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <Link 
+                    to="/login" 
+                    className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors"
+                  >
+                    Login
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -300,6 +330,18 @@ const Dashboard = () => {
           <p className="text-gray-400">AI-powered betting predictions with confidence indicators</p>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-900 border border-red-700 rounded-lg">
+            <p className="text-red-300">{error}</p>
+            <button 
+              onClick={loadData}
+              className="mt-2 px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-sm"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {matches.map(match => (
             <MatchCard 
@@ -310,7 +352,7 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {matches.length === 0 && (
+        {matches.length === 0 && !loading && !error && (
           <div className="text-center py-12">
             <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400">No matches available</p>
@@ -327,29 +369,40 @@ const AdminPanel = () => {
   const [file, setFile] = useState(null);
   const [training, setTraining] = useState(false);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const { user, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
     if (isAdmin()) {
       loadAdminData();
+    } else {
+      setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   const loadAdminData = async () => {
     try {
+      setLoading(true);
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      console.log('Loading admin data with token:', !!token);
 
       const [statsResponse, statusResponse] = await Promise.all([
         axios.get(`${API}/admin/stats`, { headers }),
         axios.get(`${API}/model/status`, { headers })
       ]);
 
+      console.log('Admin stats:', statsResponse.data);
+      console.log('Model status:', statusResponse.data);
+
       setStats(statsResponse.data);
       setModelStatus(statusResponse.data);
     } catch (error) {
       console.error('Error loading admin data:', error);
-      setMessage('Error loading admin data');
+      setMessage(`Error loading admin data: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -367,17 +420,19 @@ const AdminPanel = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      await axios.post(`${API}/train`, formData, {
+      const response = await axios.post(`${API}/train`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`
         }
       });
 
-      setMessage('Model trained successfully!');
+      console.log('Training response:', response.data);
+      setMessage(`Model trained successfully! Accuracy: ${(response.data.accuracy * 100).toFixed(2)}%`);
       setFile(null);
       loadAdminData();
     } catch (error) {
+      console.error('Training error:', error);
       setMessage(`Training failed: ${error.response?.data?.detail || error.message}`);
     } finally {
       setTraining(false);
@@ -391,9 +446,21 @@ const AdminPanel = () => {
           <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
           <p className="text-gray-400 mb-6">You need admin privileges to access this panel</p>
+          <p className="text-sm text-gray-500 mb-6">Admin email: komolafedaniel20@gmail.com</p>
           <Link to="/" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
             Back to Dashboard
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Loading admin panel...</p>
         </div>
       </div>
     );
@@ -492,7 +559,7 @@ const AdminPanel = () => {
                 className="block w-full text-sm text-gray-300 bg-gray-700 border border-gray-600 rounded-lg cursor-pointer focus:outline-none"
               />
               <p className="mt-1 text-xs text-gray-400">
-                CSV should have columns: home_odds, draw_odds, away_odds, result
+                CSV should have columns: home_odds, draw_odds, away_odds, result (home/draw/away)
               </p>
             </div>
             
@@ -579,24 +646,26 @@ const AdminPanel = () => {
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [showDemo, setShowDemo] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
-  const handleSignIn = async (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
 
     setLoading(true);
     setMessage('');
 
-    const { error } = await signIn(email);
+    const { error } = isSignUp ? await signUp(email, password) : await signIn(email, password);
 
     if (error) {
       setMessage(`Error: ${error.message}`);
     } else {
-      setMessage('Check your email for the login link!');
+      setMessage(isSignUp ? 'Account created successfully!' : 'Signed in successfully!');
     }
 
     setLoading(false);
@@ -604,7 +673,7 @@ const LoginPage = () => {
 
   const handleDemoAccess = () => {
     // For demo purposes, navigate directly to dashboard
-    window.location.href = '/dashboard';
+    window.location.href = '/';
   };
 
   return (
@@ -621,7 +690,7 @@ const LoginPage = () => {
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           {!showDemo ? (
             <>
-              <form onSubmit={handleSignIn} className="space-y-4">
+              <form onSubmit={handleAuth} className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                     Email address
@@ -638,6 +707,22 @@ const LoginPage = () => {
                   />
                 </div>
 
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your password"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -646,8 +731,16 @@ const LoginPage = () => {
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
-                    'Sign in with email'
+                    isSignUp ? 'Sign Up' : 'Sign In'
                   )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="w-full text-sm text-blue-400 hover:text-blue-300"
+                >
+                  {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
                 </button>
               </form>
 
@@ -685,14 +778,6 @@ const LoginPage = () => {
                   <Eye className="w-4 h-4 mr-2" />
                   Enter as Public User
                 </button>
-                
-                <button
-                  onClick={() => window.location.href = '/admin'}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                >
-                  <Shield className="w-4 h-4 mr-2" />
-                  View Admin Panel
-                </button>
               </div>
 
               <button
@@ -718,7 +803,7 @@ const LoginPage = () => {
 
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            Admin demo: Use any email ending with @admin.com
+            Admin access: komolafedaniel20@gmail.com
           </p>
         </div>
       </div>
@@ -727,15 +812,27 @@ const LoginPage = () => {
 };
 
 function App() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <AuthProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Dashboard />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

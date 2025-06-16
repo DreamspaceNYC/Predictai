@@ -229,14 +229,27 @@ frontend:
         agent: "main"
         comment: "Implemented responsive Tailwind design with color-coded confidence visualization (green/yellow/red). Mobile-optimized. Need to test responsiveness and visual elements."
 
+  - task: "Environment configuration and API integration"
+    implemented: true
+    working: false
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Need to ensure proper environment variables are set for backend API URL and Supabase configuration. Frontend needs to connect to backend API endpoints correctly."
+
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 1
-  run_ui: false
+  version: "1.1"
+  test_sequence: 2
+  run_ui: true
 
 test_plan:
   current_focus:
+    - "Environment configuration and API integration"
     - "Main dashboard with match predictions"
     - "Supabase authentication integration"
     - "Admin panel with CSV upload and model controls"
@@ -250,3 +263,5 @@ agent_communication:
     message: "Initial implementation complete. Built comprehensive PredictBet AI with React frontend, FastAPI backend, ML prediction engine, and Supabase auth. All core features implemented including dual-mode UI (public/admin), CSV upload for model training, confidence visualization, and dark theme. Ready for backend testing to verify API endpoints, ML functionality, and authentication flow."
   - agent: "testing"
     message: "Completed comprehensive testing of all backend components. All backend API endpoints are working correctly. The ML prediction engine generates accurate predictions with proper confidence scoring. Admin endpoints for model training and status monitoring work as expected. Supabase JWT authentication is properly integrated. MongoDB data persistence is working correctly. All backend tests have passed. The backend is ready for frontend integration. Recommend focusing on frontend testing next."
+  - agent: "main"
+    message: "Updated test plan to focus on frontend testing. Need to verify environment configuration, API integration, authentication flow, and UI functionality. Backend is confirmed working, so focus should be on frontend-backend integration and user interface testing. Added environment configuration as high priority task since frontend needs proper API connection."
