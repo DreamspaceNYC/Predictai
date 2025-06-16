@@ -107,15 +107,18 @@ user_problem_statement: "Build a responsive React + Tailwind web UI for PredictB
 backend:
   - task: "Core API endpoints (/api/, /api/odds, /api/predictions)"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "Implemented FastAPI backend with core endpoints for odds and predictions. Backend running on port 8001. Need to test basic functionality."
+      - working: true
+        agent: "testing"
+        comment: "Tested all core API endpoints. Root endpoint returns correct API info. Odds endpoint returns properly structured match data with odds. Predictions endpoint generates and returns predictions with correct structure and valid confidence scores. All endpoints are working as expected."
 
   - task: "ML prediction engine with scikit-learn + XGBoost"
     implemented: true
