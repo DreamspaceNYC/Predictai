@@ -167,15 +167,18 @@ backend:
 
   - task: "MongoDB integration for data persistence"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "MongoDB integration for matches, predictions, and training metadata. Indexes created. Need to test data storage and retrieval."
+      - working: true
+        agent: "testing"
+        comment: "Tested MongoDB integration. The system correctly stores and retrieves match data, predictions, and training metadata. Indexes are created on startup. Data persistence works as expected across API calls."
 
 frontend:
   - task: "Main dashboard with match predictions"
