@@ -23,6 +23,9 @@ import asyncio
 from supabase import create_client, Client
 from jose import JWTError, jwt
 
+# Local scraping utilities
+from .scraper import scrape_betking_odds, scrape_bet9ja_odds
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -321,21 +324,43 @@ async def root():
 
 @api_router.get("/odds", response_model=List[Match])
 async def get_odds():
-    """Get current odds for matches"""
-    # Convert mock data to Match objects
-    matches = []
-    for odds_data in MOCK_ODDS:
-        match = Match(**odds_data)
-        matches.append(match)
-    
-    # Store in database
+    """Get current odds for matches."""
+    matches: List[Match] = []
+
+    # Try live scrapers first
+    scraped_data = []
+    for scraper in (scrape_betking_odds, scrape_bet9ja_odds):
+        try:
+            scraped_data.extend(scraper())
+        except Exception as exc:
+            logger.error("Scraper error: %s", exc)
+
+    if scraped_data:
+        for data in scraped_data:
+            match_info = {
+                "id": str(uuid.uuid4()),
+                "match": data["match"],
+                "home_team": data["match"].split(" vs ")[0],
+                "away_team": data["match"].split(" vs ")[1] if " vs " in data["match"] else "",
+                "home_odds": data["home_odds"],
+                "draw_odds": data["draw_odds"],
+                "away_odds": data["away_odds"],
+                "league": data.get("league", "Unknown"),
+            }
+            matches.append(Match(**match_info))
+    else:
+        # Fallback to mock data when scraping fails
+        for odds_data in MOCK_ODDS:
+            matches.append(Match(**odds_data))
+
+    # Store matches in database
     for match in matches:
         await db.matches.update_one(
             {"id": match.id},
             {"$set": match.dict()},
-            upsert=True
+            upsert=True,
         )
-    
+
     return matches
 
 @api_router.get("/predictions", response_model=List[Prediction])
